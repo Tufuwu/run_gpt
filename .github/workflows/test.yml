@@ -1,4 +1,4 @@
-name: CI
+name: Django CI
 
 on:
   push:
@@ -9,23 +9,15 @@ on:
       - main
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-22.04
-
     strategy:
       matrix:
-        python-version: [3.8, 3.8]
+        python-version: [3.8, 3.8, 3.8]
+        django-version: [django21, django22, django30, django31]
 
     steps:
     - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0 # Fetch all history for SonarCloud analysis
-
-    - name: Set up JDK 8
-      uses: actions/setup-java@v2
-      with:
-        java-version: '8'
-        distribution: 'oracle'
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
@@ -33,29 +25,17 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: bash scripts/install.sh
+      run: |
+        python -m pip install --upgrade pip
+        pip install tox coverage
 
     - name: Run tests
-      run: bash scripts/run_tests.sh
-
-    - name: SonarCloud Scan
-      if: github.event_name == 'push' && github.event.pull_request == null
       env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        TOX_ENV: py${{ matrix.python-version[0] }}${{ matrix.python-version[2] }}-${{ matrix.django-version }}
       run: |
-        sonar-scanner \
-          -Dsonar.organization=jonlabelle-github \
-          -Dsonar.projectKey=your_project_key
+        tox -r -e $TOX_ENV
 
-    - name: Cache SonarCloud
-      uses: actions/cache@v2
-      with:
-        path: ~/.sonar/cache
-        key: ${{ runner.os }}-sonar-cache
-        restore-keys: |
-          ${{ runner.os }}-sonar-cache
-
-  notifications:
-    email:
-      on_success: never
-      on_failure: always
+    - name: Upload coverage to Codecov
+      if: success()
+      run: |
+        bash <(curl -s https://codecov.io/bash)
