@@ -1,4 +1,4 @@
-name: CI
+name: Python package
 
 on:
   push:
@@ -9,27 +9,30 @@ on:
       - main
 
 jobs:
-  flake8:
-    runs-on: ubuntu-22.04
+  test:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8]
+        python-version: [3.8, 3.8, 3.8, 3.9]
+        env:
+          - TOXENV: [py38, cov, py38, py38, py39]
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: pip install flake8
-      - name: Run Flake8
-        run: flake8
-
-  dockerfile_lint:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v2
-      - name: Run Hadolint
-        uses: hadolint/hadolint-action@v2
-        with:
-          dockerfile: Dockerfile
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install tox coveralls
+    - name: Run tests
+      run: |
+        if [[ "${{ matrix.env }}" == "cov" ]]; then
+          tox -e cov
+        else
+          tox -e ${{ matrix.env }}
+        fi
+    - name: Upload coverage to Coveralls
+      if: matrix.env == 'cov'
+      run: coveralls
