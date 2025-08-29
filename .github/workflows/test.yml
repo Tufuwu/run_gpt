@@ -1,4 +1,4 @@
-name: CI
+name: Python package
 
 on:
   push:
@@ -10,37 +10,29 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.9, 3.10]
+        python-version: [3.8, 3.8, 3.8, 3.8, 3.8]
         include:
-          - python-version: 3.9
-            package: mock
-            name: mock RPM in Copr
-            if: github.event_name == 'pull_request'
-          - python-version: 3.9
-            package: mock-core-configs
-            name: mock-core-configs RPM in Copr
-            if: github.event_name == 'pull_request'
-
+          - python-version: 3.8
+            env: TOXENV=flake8
+          - python-version: 3.8
+            env: TOXENV=isort
     steps:
     - uses: actions/checkout@v2
-
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-
     - name: Install dependencies
       run: |
-        pip install -r mock/requirements.txt
-        pip install pytest-cov
-
+        python -m pip install --upgrade pip
+        pip install tox-travis
+        pip install coveralls
     - name: Run tests
+      run: tox
+    - name: Upload coverage to Coveralls
+      if: success() && matrix.python-version == '3.8'
       run: |
-        if [ -n "${{ matrix.package }}" ]; then
-          PACKAGE=${{ matrix.package }} .travis/copr-build
-        else
-          PYTHON=python${{ matrix.python-version }} ./mock/run-tests.sh
-        fi
+        if [ -e .coverage ]; then coveralls; fi
