@@ -1,4 +1,4 @@
-name: CI
+name: Python package
 
 on:
   push:
@@ -10,31 +10,55 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        python-version: [3.8, 3.8, 3.8, 3.8, 3.9, pypy-3.6]
+        toxenv:
+          - pre-commit
+          - py38-2.2
+          - py38-2.2
+          - py38-2.2
+          - py38-2.2
+          - pypy-3.6-2.2
+          - py38-3.0
+          - py38-3.0
+          - py38-3.0
+          - pypy-3.6-3.0
+          - py38-3.1
+          - py38-3.1
+          - py38-3.1
+          - pypy-3.6-3.1
+          - py38-3.2
+          - py38-3.2
+          - py38-3.2
+          - py39-3.2
+          - pypy-3.6-3.2
+          - py38-main
+          - py39-main
+          - pypy-3.6-main
+      fail-fast: false
+      allow_failures:
+        - toxenv: py38-main
+        - toxenv: py39-main
+        - toxenv: pypy-3.6-main
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-
-    - name: Set up Python
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
-        python-version: '3.9'
-
-    - name: Install Docker
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-        sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-        sudo apt-get update
-        sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
-
-    - name: Build Docker image
-      run: docker build -t draft-kings-fun .
-
-    - name: Run Flake8
-      run: docker run draft-kings-fun flake8 draftfast
-
-    - name: Run Tests
-      run: docker run draft-kings-fun nosetests --with-coverage --cover-package=.
+        python -m pip install --upgrade pip
+        pip install coverage tox
+    - name: Run tests
+      run: tox -e ${{ matrix.toxenv }}
+    - name: Upload coverage to Coveralls
+      if: success()
+      env:
+        COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+      run: |
+        pip install coveralls
+        coveralls
