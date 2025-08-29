@@ -1,4 +1,4 @@
-name: Python package
+name: isodatetime Tests
 
 on:
   push:
@@ -7,43 +7,61 @@ on:
   pull_request:
     branches:
       - main
-  release:
-    types: [created]
 
 jobs:
-  test:
-    runs-on: ubuntu-22.04
+  build:
     strategy:
       matrix:
-        python-version: ['3.8', '3.8', '3.8', '3.8']
+        os: [ubuntu-latest, macos-latest]
+        python-version: [3.8, 3.8, 3.8, 3.8, 3.9]
+        include:
+          - os: ubuntu-latest
+            python-version: 3.8
+            env: TZ=XXX-05:30
+    runs-on: ${{ matrix.os }}
+
     steps:
     - uses: actions/checkout@v2
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: pip install -r requirements.txt
-    - name: Run tests
-      run: pytest
 
-  deploy:
-    runs-on: ubuntu-22.04
-    needs: test
-    if: github.event_name == 'release'
-    steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.8
     - name: Install dependencies
-      run: pip install -r requirements.txt
-    - name: Build and publish
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
       run: |
-        python setup.py sdist bdist_wheel
-        twine upload --skip-existing dist/*
+        python -m pip install --upgrade pip setuptools
+        pip install -e .[all]
+        pip install pytest-xdist pycodestyle
 
+    - name: Lint with flake8
+      run: flake8 metomi/isodatetime
+
+    - name: Run tests
+      env:
+        RUN_COVERAGE: ${{ matrix.python-version == '3.8' && matrix.os == 'ubuntu-latest' }}
+      run: |
+        PYTEST_ARGS=('-n' '2')
+        if [ "$RUN_COVERAGE" = "true" ]; then
+          PYTEST_ARGS+=('--cov=metomi/isodatetime')
+        fi
+
+        pytest "${PYTEST_ARGS[@]}" &
+        TEST_PID="$!"
+        minutes=0
+        limit=50
+        while ps -p "${TEST_PID}" >/dev/null 2>&1; do
+          echo -n -e " \b"
+          if ((minutes == limit)); then
+            exit 1
+          fi
+          minutes=$((minutes + 1))
+          sleep 60
+        done
+        wait "${TEST_PID}"
+
+    - name: Upload coverage to Codecov
+      if: matrix.python-version == '3.8' && matrix.os == 'ubuntu-latest'
+      run: |
+        coverage xml --ignore-errors
+        bash <(curl -s https://codecov.io/bash)
