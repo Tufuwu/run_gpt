@@ -4,31 +4,19 @@ on:
   push:
     branches:
       - main
+    tags:
+      - '*'
   pull_request:
     branches:
       - main
-  release:
-    types: [created]
 
 jobs:
   build:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8, 3.8]
-        include:
-          - python-version: 3.8
-            ipython-version: '7.9'
-            pandas-version: '0.24.2'
-          - python-version: 3.8
-            ipython-version: '7'
-            pandas-version: '1'
-          - python-version: 3.8
-            ipython-version: '7'
-            pandas-version: '1'
-          - python-version: 3.8
-            ipython-version: '7'
-            pandas-version: '1'
+        python-version: [3.8, 3.8, 3.8, 3.8, 3.8, '3.8']
+
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -37,18 +25,15 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        pip install IPython==${{ matrix.ipython-version }}
-        pip install pandas==${{ matrix.pandas-version }}
-        pip install .[test]
-    - name: Test with pytest
-      run: |
-        python -c 'import pytorch_memlab'
-        pytest test/test_mem_reporter.py
+        python -m pip install --upgrade pip
+        pip install .
+    - name: Test with setup.py
+      run: python setup.py test
 
   deploy:
     runs-on: ubuntu-22.04
     needs: build
-    if: github.event_name == 'release'
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.8
@@ -57,15 +42,12 @@ jobs:
         python-version: 3.8
     - name: Install dependencies
       run: |
-        pip install IPython==7
-        pip install pandas==1
-        pip install .[test]
-    - name: Publish to PyPI
+        python -m pip install --upgrade pip
+        pip install .
+    - name: Build and publish
       env:
-        TWINE_USERNAME: yoursky
+        TWINE_USERNAME: phillbaker
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
-        pip install twine
         python setup.py sdist bdist_wheel
-        twine upload dist/*
-
+        twine upload --skip-existing dist/*
