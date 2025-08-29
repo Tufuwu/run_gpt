@@ -1,4 +1,4 @@
-name: CI
+name: Python package
 
 on:
   push:
@@ -11,9 +11,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8]
+        python-version: [3.8, 3.8, 3.8, 3.9]
 
     steps:
     - uses: actions/checkout@v2
@@ -25,10 +26,19 @@ jobs:
 
     - name: Install dependencies
       run: |
-        ./scripts/install_radare2.sh
-        pip install -r python/requirements_ci.txt
-        cd python && python setup.py install
+        python -m pip install --upgrade pip wheel coverage codecov
+        pip install -r requirements.txt pytest pytest-mock
+        python setup.py develop
 
     - name: Run tests
       run: |
-        cd test && make tests
+        coverage run -m pytest -v tests/
+        codecov
+
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
