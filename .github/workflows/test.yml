@@ -10,11 +10,31 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8, 3.8, pypy-3.6]
+        python-version: [3.8, 3.8, 3.8, 3.8, 3.8, 3.8, 3.9]
+        env: [py38, py38, py38, py38, py38, py38, py39, qa, doc]
+        include:
+          - python-version: 3.8
+            env: py38
+          - python-version: 3.8
+            env: py38
+          - python-version: 3.8
+            env: py38
+          - python-version: 3.8
+            env: py38
+          - python-version: 3.8
+            env: py38
+          - python-version: 3.8
+            env: py38
+          - python-version: 3.9
+            env: py39
+          - python-version: 3.8
+            env: qa
+          - python-version: 3.8
+            env: doc
+
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
@@ -26,14 +46,10 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install -r test-requirements.txt
-        pip install -e .
+        python -m pip install --upgrade setuptools pip
+        pip install tox
 
     - name: Run tests
-      run: nosetests -q --with-coverage --cover-package=pycron
-
-    - name: Upload coverage to Coveralls
-      if: success()
       env:
-        COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-      run: coveralls
+        TOXENV: ${{ matrix.env }}
+      run: tox -v
