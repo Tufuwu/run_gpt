@@ -1,19 +1,20 @@
-name: Python package
+name: CI
 
 on:
   push:
     branches:
       - main
+    tags:
+      - '*'
   pull_request:
-    branches:
-      - main
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        python-version: ['3.8', '3.8', '3.9', '3.10', '3.11']
+        python-version: [3.8, 3.8]
 
     steps:
     - uses: actions/checkout@v2
@@ -24,14 +25,18 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: pip install tox-travis
+      run: |
+        sudo apt-get -qq update
+        sudo apt-get install -y libicu-dev
+        pip install -e .
+        pip install pyicu coverage nose twine
 
     - name: Run tests
-      run: tox
+      run: |
+        nosetests --with-coverage --cover-package=fingerprints --cover-erase
 
-    - name: Slack Notification
-      uses: 8398a7/action-slack@v3
-      with:
-        status: ${{ job.status }}
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    - name: Build and publish
+      if: github.event_name == 'push' && github.ref == 'refs/tags/' + github.ref_name
+      run: |
+        python setup.py sdist bdist_wheel
+        twine upload dist/*
