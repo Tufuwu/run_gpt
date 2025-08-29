@@ -1,4 +1,4 @@
-name: Python package
+name: Django CI
 
 on:
   push:
@@ -9,11 +9,19 @@ on:
       - main
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8, 3.9]
+        python-version: [3.8, 3.8, 3.8, 3.8]
+        django-version: [1.8, 1.11, 2.0, 2.1, 2.2]
+        exclude:
+          - python-version: 3.8
+            django-version: 2.0
+          - python-version: 3.8
+            django-version: 2.1
+          - python-version: 3.8
+            django-version: 2.2
 
     steps:
     - uses: actions/checkout@v2
@@ -23,30 +31,15 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Cache pip
-      uses: actions/cache@v2
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements/testing.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-
     - name: Install dependencies
       run: |
-        pip install tox-travis
-        pip install coveralls
-        pip install -r requirements/testing.txt
+        python -m pip install --upgrade pip
+        pip install django==${{ matrix.django-version }}
+        if [ "${{ matrix.python-version }}" == "3.8" ]; then pip install black; fi
 
-    - name: Lint with flake8
-      run: flake8
+    - name: Run tests
+      run: python manage.py test
 
-    - name: Test with tox
-      run: tox
-
-    - name: Coveralls
-      run: coveralls
-
-  notifications:
-    email:
-      on_success: change
-      on_failure: always
+    - name: Run Black
+      if: matrix.python-version == '3.8'
+      run: black --check zen_queries
