@@ -9,32 +9,11 @@ on:
       - main
 
 jobs:
-  build:
+  test:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8, 3.8, 3.8, 3.8, 3.9]
-        env: [py38, py38, py38, py38, py38, py38, py39, qa, doc]
-        include:
-          - python-version: 3.8
-            env: py38
-          - python-version: 3.8
-            env: py38
-          - python-version: 3.8
-            env: py38
-          - python-version: 3.8
-            env: py38
-          - python-version: 3.8
-            env: py38
-          - python-version: 3.8
-            env: py38
-          - python-version: 3.9
-            env: py39
-          - python-version: 3.8
-            env: qa
-          - python-version: 3.8
-            env: doc
-
-    runs-on: ubuntu-latest
+        python-version: [3.8, 3.9, 3.10]
 
     steps:
     - uses: actions/checkout@v2
@@ -46,10 +25,17 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade setuptools pip
-        pip install tox
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+        pip install coverage
 
     - name: Run tests
+      run: |
+        pytest --cov=./
+
+    - name: Upload coverage to Codecov
       env:
-        TOXENV: ${{ matrix.env }}
-      run: tox -v
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      run: |
+        bash <(curl -s https://codecov.io/bash)
