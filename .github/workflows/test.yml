@@ -7,70 +7,34 @@ on:
   pull_request:
     branches:
       - main
-  release:
-    types: [created]
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.8, 3.8, 3.8, 3.8, 3.8]
-        include:
-          - python-version: 3.8
-            build: docs
-          - python-version: 3.8
-            build: pep8
-          - python-version: 3.8
-            build: cover
-      allow_failures:
-        - python-version: 3.8
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.9'
 
-    - name: Install dependencies
+    - name: Install Docker
       run: |
-        pip install --upgrade pip
-        pip uninstall -y nose mock
-        pip install pbr tox
-        pip install -r doc/requirements.txt .[test]
+        sudo apt-get update
+        sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+        sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+        sudo apt-get update
+        sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
 
-    - name: Run tests
-      run: |
-        if [[ -n "${{ matrix.build }}" ]]; then
-          tox -e ${{ matrix.build }}
-        else
-          tox
-        fi
+    - name: Build Docker image
+      run: docker build -t draft-kings-fun .
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'release'
-    steps:
-    - uses: actions/checkout@v2
+    - name: Run Flake8
+      run: docker run draft-kings-fun flake8 draftfast
 
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.8
-
-    - name: Install dependencies
-      run: |
-        pip install --upgrade pip
-        pip install setuptools wheel twine
-
-    - name: Build and publish
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-      run: |
-        python setup.py sdist bdist_wheel
-        twine upload --skip-existing dist/*
-
+    - name: Run Tests
+      run: docker run draft-kings-fun nosetests --with-coverage --cover-package=.
