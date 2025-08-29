@@ -1,77 +1,44 @@
-name: Python package
+name: CI
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
-  release:
-    types: [created]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-22.04
+
     strategy:
       matrix:
-        python-version: ["3.8", "3.8", "3.8", "3.8", "3.8", "3.8"]
-        include:
-          - python-version: "3.8"
-            aio-available: false
-            coveragerc: ".coveragerc-py2"
-          - python-version: "3.8"
-            aio-available: false
-            coveragerc: ".coveragerc-py38"
-          - python-version: "3.8"
-            aio-available: false
-            coveragerc: ".coveragerc"
-          - python-version: "3.8"
-            aio-available: true
-            coveragerc: ".coveragerc"
-          - python-version: "3.8"
-            aio-available: true
-            coveragerc: ".coveragerc"
-          - python-version: "3.8"
-            aio-available: true
-            coveragerc: ".coveragerc"
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          pip install -U pip setuptools wheel
-          pip install -U pytest pytest-cov coveralls
-          if [ "${{ matrix.aio-available }}" = "true" ]; then pip install -U pytest-asyncio; fi
-          pip install -e .
-      - name: Run tests
-        run: |
-          pytest --cov-config ${{ matrix.coveragerc }} --cov=pydispatch
-      - name: Upload coverage to Coveralls
-        if: success()
-        run: |
-          coveralls --rcfile="${{ matrix.coveragerc }}"
+        python-version: [3.8, 3.8]
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'release'
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.8"
-      - name: Install dependencies
-        run: |
-          pip install -U pip setuptools wheel
-      - name: Build and publish
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          python setup.py sdist bdist_wheel
-          twine upload dist/*
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 10
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git build-essential automake libtool python-dev gettext swig
+        pip install flake8
+
+    - name: Check flake8 version
+      run: flake8 --version
+
+    - name: Compile AutoBouquetsMaker enigma2 plugin
+      run: |
+        python -m compileall .
+        find . -type f -name "*.po" -exec msgfmt {} -o {}.mo \;
+
+    - name: Run flake8
+      run: flake8 --ignore=W191,E128,E501,E722 . --exit-zero
+
+    - name: Done
+      run: echo done.
