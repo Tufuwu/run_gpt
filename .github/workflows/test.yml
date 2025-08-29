@@ -13,29 +13,40 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8]
-        include:
-          - python-version: 3.8
-            env: TOXENV=cover
-          - python-version: 3.8
-            env: TOXENV=black
+        python-version: [3.8, 3.8, 3.8, 3.9]
 
     steps:
     - uses: actions/checkout@v2
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install Node.js
-      uses: actions/setup-node@v2
+
+    - name: Cache pip
+      uses: actions/cache@v2
       with:
-        node-version: '14'
-    - name: Install Elm
-      run: npm i -g elm
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements/testing.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
     - name: Install dependencies
-      run: pip install tox-travis
-    - name: Run tests
+      run: |
+        pip install tox-travis
+        pip install coveralls
+        pip install -r requirements/testing.txt
+
+    - name: Lint with flake8
+      run: flake8
+
+    - name: Test with tox
       run: tox
-    - name: Upload coverage to Coveralls
-      if: success()
+
+    - name: Coveralls
       run: coveralls
+
+  notifications:
+    email:
+      on_success: change
+      on_failure: always
