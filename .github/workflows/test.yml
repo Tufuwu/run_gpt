@@ -10,14 +10,11 @@ on:
 
 jobs:
   build:
+    runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        python-version: ["3.8", "pypy-3.6", "3.8", "3.8", "3.8", "3.8"]
-        include:
-          - python-version: "3.8"
-            dist: xenial
-
-    runs-on: ubuntu-latest
+        python-version: ['3.8', '3.8', '3.8', '3.8', '3.8', '3.9']
 
     steps:
     - uses: actions/checkout@v2
@@ -29,25 +26,15 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python setup.py --quiet install
+        python -m pip install --upgrade pip
+        pip install .
+        pip install -r requirements.txt
+        pip install rednose coverage coveralls
 
-    - name: Run tests
+    - name: Test with nosetests
       run: |
-        python test_docformatter.py
-        docformatter setup.py
+        nosetests test --rednose --verbosity=3 --with-coverage --cover-package ncclient
 
-    - name: Install coverage
-      run: |
-        pip install --quiet coverage
-
-    - name: Run coverage
-      run: |
-        make coverage
-
-    - name: Install coveralls
-      run: |
-        pip install --quiet coveralls
-
-    - name: Run coveralls
-      run: |
-        coveralls
+    - name: Coveralls
+      if: success()
+      run: coveralls
