@@ -2,32 +2,33 @@ name: CI
 
 on:
   push:
-    branches-ignore:
-      - /^dependabot/.*/
+    branches:
+      - main
   pull_request:
-    branches-ignore:
-      - /^dependabot/.*/
+    branches:
+      - main
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8, 3.8, 3.8, pypy-3.6-3.8, pypy-3.6-3.8]
-        include:
-          - python-version: 3.8
-            env: OLD_CRYPTOGRAPHY=3.8.1
+        python-version: [3.8, 3.8, 3.8]
 
     steps:
     - uses: actions/checkout@v2
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+
     - name: Install dependencies
       run: |
-        if [ -n "${{ matrix.env.OLD_CRYPTOGRAPHY }}" ]; then
-          pip install cryptography==${{ matrix.env.OLD_CRYPTOGRAPHY }}
-        fi
-    - name: Run script
-      run: ci/travis.sh
+        ./scripts/install_radare2.sh
+        pip install -r python/requirements_ci.txt
+        cd python && python setup.py install
+
+    - name: Run tests
+      run: |
+        cd test && make tests
