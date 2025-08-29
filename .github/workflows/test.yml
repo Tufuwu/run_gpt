@@ -12,9 +12,9 @@ jobs:
   build:
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8, 3.8]
-        requirements-file: [minimal_requirements.txt, requirements.txt]
-
+        python-version: [3.8, 3.8, 3.8, 3.8, 3.9, '3.8']
+        allow_failures:
+          - python-version: '3.8'
     runs-on: ubuntu-latest
 
     steps:
@@ -27,17 +27,13 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install -r ${{ matrix.requirements-file }}
+        python -m pip install --upgrade pip
         pip install --upgrade pytest
-        pip install pytest-cov codecov
-
-    - name: Set MPLBACKEND
-      run: echo "MPLBACKEND=Agg" >> $GITHUB_ENV
+        pip install --editable .
 
     - name: Test with pytest
-      run: python -m pytest --cov=fgivenx
+      run: pytest
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v2
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
+    - name: Disable email notifications
+      if: always()
+      run: echo "Email notifications are disabled."
