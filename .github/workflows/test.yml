@@ -2,18 +2,16 @@ name: Python package
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    tags:
+      - '*'
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8, 3.8]
+        python-version: [3.8, 3.8, 3.8]
 
     steps:
     - uses: actions/checkout@v2
@@ -25,14 +23,37 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo apt-get update -qq
-        sudo apt-get install -qq libhdf5-serial-dev
-        python -m pip install --upgrade pip setuptools wheel virtualenv
-        pip install tox tox-travis codecov
+        python -m pip install --upgrade pip
+        pip install -r dev-requirements.txt
+        pip install -e .
 
-    - name: Run tests with tox
-      run: tox
+    - name: Test with pytest
+      run: |
+        pytest --vcr-record=none --cov=tenable tests
 
-    - name: Upload coverage to Codecov
-      if: success()
-      uses: codecov/codecov-action@v2
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r dev-requirements.txt
+        pip install -e .
+
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: stevemcgrath
+        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      run: |
+        python -m pip install --upgrade twine
+        twine upload --skip-existing dist/*
