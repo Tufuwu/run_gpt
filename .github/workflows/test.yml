@@ -10,11 +10,11 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8]
+        python-version: [3.8, 3.8, 3.8, 3.8, 3.8, 3.8, 3.9, pypy-3.6]
 
     steps:
     - uses: actions/checkout@v2
@@ -26,13 +26,12 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python3 setup.py install
-        sudo apt-get -y update
-        pip install pytest-cov
-        pip install .[ja]
+        python -m pip install --upgrade pip
+        pip install flake8
+        pip install pytest
 
     - name: Test with pytest
-      run: python3 -m pytest
+      run: python -m pytest -v .
 
-    - name: Run additional tests
-      run: ./test.sh
+    - name: Lint with flake8
+      run: flake8
