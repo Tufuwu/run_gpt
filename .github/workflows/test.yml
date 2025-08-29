@@ -1,4 +1,4 @@
-name: Python package
+name: CI
 
 on:
   push:
@@ -10,33 +10,52 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8, '3.x']
+        python-version: [3.8, 3.8]
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0 # Fetch all history for SonarCloud analysis
+
+    - name: Set up JDK 8
+      uses: actions/setup-java@v2
+      with:
+        java-version: '8'
+        distribution: 'oracle'
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Cache pip
-      uses: actions/cache@v2
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      run: bash scripts/install.sh
 
     - name: Run tests
-      run: make test
+      run: bash scripts/run_tests.sh
 
+    - name: SonarCloud Scan
+      if: github.event_name == 'push' && github.event.pull_request == null
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        sonar-scanner \
+          -Dsonar.organization=jonlabelle-github \
+          -Dsonar.projectKey=your_project_key
+
+    - name: Cache SonarCloud
+      uses: actions/cache@v2
+      with:
+        path: ~/.sonar/cache
+        key: ${{ runner.os }}-sonar-cache
+        restore-keys: |
+          ${{ runner.os }}-sonar-cache
+
+  notifications:
+    email:
+      on_success: never
+      on_failure: always
