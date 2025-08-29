@@ -1,4 +1,4 @@
-name: CI
+name: Python package
 
 on:
   push:
@@ -10,10 +10,10 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: [3.8]
+        python-version: [3.9, 3.8, 3.8, 3.8]
 
     steps:
     - uses: actions/checkout@v2
@@ -25,14 +25,17 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo apt-get -qq update
-        sudo apt-get install -y libeigen3-dev
-        pip install -r requirements.txt
-        pip install pytest pytest-cov pytest-randomly wheel codecov
-        pip install -e .
+        sudo apt-get update
+        sudo apt-get install -y graphviz
+        pip install .[test] codecov
 
     - name: Run tests
-      run: make coverage
+      run: ./run-tests.py
 
     - name: Upload coverage to Codecov
+      if: success()
       uses: codecov/codecov-action@v2
+
+    - name: Cleanup pip cache
+      if: success()
+      run: rm -f $HOME/.cache/pip/log/debug.log
