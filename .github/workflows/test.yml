@@ -9,12 +9,12 @@ on:
       - main
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        python-version: [3.8, 3.8]
+        python-version: ['3.8']
 
     steps:
     - uses: actions/checkout@v2
@@ -25,7 +25,22 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: CFLAGS="-O0" pip install . --upgrade
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/ci.txt
 
     - name: Run tests
-      run: ./runtests.sh
+      run: |
+        coverage run manage.py test
+
+    - name: Generate coverage report
+      run: |
+        coverage report
+        coverage xml
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        files: coverage.xml
+        fail_ci_if_error: true
+
