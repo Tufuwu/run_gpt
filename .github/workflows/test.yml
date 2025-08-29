@@ -1,4 +1,4 @@
-name: Python application
+name: CI
 
 on:
   push:
@@ -10,35 +10,42 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        python-version: [3.8, 3.8, 3.8, 3.8, 3.8, 3.9]
 
     steps:
     - uses: actions/checkout@v2
 
-    - name: Set up Python 3.8
+    - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
-        python-version: '3.8'
+        python-version: ${{ matrix.python-version }}
 
-    - name: Install Miniconda
+    - name: Upgrade pip, wheel, setuptools, and install codecov
       run: |
-        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $HOME/miniconda.sh
-        bash $HOME/miniconda.sh -b -u -p $HOME/miniconda
-        echo "$HOME/miniconda/bin" >> $GITHUB_PATH
-        source $GITHUB_PATH
+        pip install -U pip wheel setuptools codecov
 
     - name: Install dependencies
       run: |
-        pip install nose coverage coveralls flake8 scikit-image
-        pip install -e .
+        pip install -r reqs/requirements-latest.txt -r reqs/requirements-tests.txt
 
-    - name: Lint with flake8
-      run: flake8
+    - name: Run tests with coverage
+      run: |
+        coverage erase
+        coverage run --branch bin/trial scrapyd
+        coverage report
 
-    - name: Test with nosetests
-      run: nosetests -sv --with-doctest --no-byte-compile --with-coverage --cover-package=tftb
-
-    - name: Coveralls
+    - name: Upload coverage to Codecov
       env:
-        COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: coveralls
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      run: |
+        codecov
+
+  notifications:
+    irc:
+      channels:
+        - "irc.freenode.org#scrapy"
+      use_notice: true
+      skip_join: true
