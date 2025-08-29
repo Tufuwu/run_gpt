@@ -1,4 +1,4 @@
-name: Python package
+name: Python application
 
 on:
   push:
@@ -10,17 +10,11 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.9, pypy-3.6]
-        django-version: [Django>=2.2,<2.3, Django>=3.0,<3.2, Django>=3.2,<3.3]
-
-    services:
-      mongodb:
-        image: mongo:latest
-        ports:
-          - 27017:27017
+        python-version: [3.8, 3.8, 3.8]
 
     steps:
     - uses: actions/checkout@v2
@@ -30,13 +24,16 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install Poetry
-      run: pip install poetry
+    - name: Install Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14'
+
+    - name: Install JSHint
+      run: npm install -g jshint
 
     - name: Install dependencies
-      run: |
-        poetry install -q
-        poetry run pip install -q ${{ matrix.django-version }}
+      run: pip install -r requirements.txt
 
-    - name: Run tests
-      run: poetry run python -m pytest
+    - name: Run make
+      run: make
