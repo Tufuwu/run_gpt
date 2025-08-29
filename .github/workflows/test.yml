@@ -1,4 +1,4 @@
-name: CI
+name: Django CI
 
 on:
   push:
@@ -9,18 +9,22 @@ on:
       - main
 
 jobs:
-  build:
-    runs-on: ubuntu-22.04
+  test:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8, 3.8]
-        env:
-          - TOX_ENV: flake8
-          - TOX_ENV: isort
-          - DJANGO: dj22
-          - DJANGO: dj30
-          - DJANGO: dj31
-          - DJANGO: dj32
+        python-version: [3.8, 3.8, 3.8]
+        django-version: ["django>=1.11,<1.12", "django>=2.0,<2.1"]
+        exclude:
+          - python-version: 3.8
+            django-version: "django>=2.0,<2.1"
+        include:
+          - python-version: 3.8
+            django-version: "django>=2.1,<2.2"
+          - python-version: 3.8
+            django-version: "django>=2.2,<2.3"
+          - python-version: 3.8
+            django-version: "django>=3.0,<3.1"
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -29,15 +33,21 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install coverage isort tox
-        if [ "${{ matrix.python-version }}" == "3.8" ]; then echo "PY_VER=py38" >> $GITHUB_ENV; fi
-        if [ "${{ matrix.python-version }}" == "3.8" ]; then echo "PY_VER=py38" >> $GITHUB_ENV; fi
-        if [ "${{ matrix.python-version }}" == "3.8" ]; then echo "PY_VER=py38" >> $GITHUB_ENV; fi
-        if [ "${{ matrix.python-version }}" == "3.8" ]; then echo "PY_VER=py38" >> $GITHUB_ENV; fi
-        if [ "${{ matrix.env.DJANGO }}" != "" ]; then echo "TOX_ENV=${{ env.PY_VER }}" >> $GITHUB_ENV; fi
+        python -m pip install --upgrade pip wheel setuptools
+        pip install codecov
+        pip install ${{ matrix.django-version }} -e .[tests]
     - name: Run tests
-      run: tox -e ${{ env.TOX_ENV }}
+      run: coverage run --rcfile=.coveragerc runtests.py
     - name: Upload coverage to Codecov
       if: success()
-      run: bash <(curl -s https://codecov.io/bash)
+      uses: codecov/codecov-action@v2
+
+  notifications:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Send notifications
+      if: failure()
+      run: |
+        echo "Sending notifications..."
+        # Add your notification logic here
+
